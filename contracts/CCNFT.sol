@@ -287,13 +287,13 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
     function transferFrom(address, address, uint256) 
         public 
         pure 
-        override(ERC721, IERC721) 
+        override(ERC721)
     {
         revert("Not Allowed");
     }
 
     function safeTransferFrom(address, address, uint256) 
-        public pure override(ERC721, IERC721) 
+        public pure override(ERC721)
     {
         revert("Not Allowed");
     }
@@ -301,7 +301,7 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
     function safeTransferFrom(address, address, uint256,  bytes memory) 
         public 
         pure
-        override(ERC721, IERC721) 
+        override(ERC721)
     {
         revert("Not Allowed");
     }
