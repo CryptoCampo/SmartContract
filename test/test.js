@@ -2,10 +2,10 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("CCNFT", function () {
-  let deployer, privateInvestor, c1, c2, funds, fees, returnCollector, busd, ccnft;
+  let deployer, privateInvestor, c1, c2, funds, fees, busd, ccnft;
   let c1Balance = 0, c2Balance = 0, fundsBalance = 0, feesBalance = 0, privateInvestorBalance = 0, NFT_VALUE 
   before(async function() {
-    [deployer, privateInvestor, c1, c2, funds, fees, returnCollector] = await ethers.getSigners();
+    [deployer, privateInvestor, c1, c2, funds, fees] = await ethers.getSigners();
 
     const BUSD = await hre.ethers.getContractFactory("BUSD");
     busd = await BUSD.deploy();
@@ -31,7 +31,6 @@ describe("CCNFT", function () {
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(50);
     expect(await ccnft.balanceOf(c1.address)).to.be.equal(0);
     expect(await ccnft.balanceOf(c2.address)).to.be.equal(0);
-    expect(await ccnft.balanceOf(returnCollector.address)).to.be.equal(0);
     expect(await ccnft.ownerOf(1)).to.be.equal(privateInvestor.address);
 
     checkBalance();
@@ -39,7 +38,7 @@ describe("CCNFT", function () {
 
   it("Cannot Buy: FundsCollector Not Set", async function () {
     await ccnft.setCanBuy(true);
-    await expect(ccnft.connect(c1).buy()).to.be.revertedWith("FundsCollector not Set");
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("FundsCollector not Set");
   });
 
   it("setFundsCollector", async function () {
@@ -48,7 +47,7 @@ describe("CCNFT", function () {
   });
 
   it("Cannot Buy: FeesCollector Not Set", async function () {
-    await expect(ccnft.connect(c1).buy()).to.be.revertedWith("FeesCollector not Set");
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("FeesCollector not Set");
     await ccnft.setCanClaim(false);
   });
 
@@ -90,29 +89,29 @@ describe("CCNFT", function () {
   });
 
   it("Cannot Buy: canBuy=false", async function () {
-    await expect(ccnft.connect(c1).buy()).to.be.revertedWith("Buy is not allowed");
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("Buy is not allowed");
   });
 
   it("Cannot Buy: ERC20: insufficient allowance ", async function () {
     await ccnft.setCanBuy(true);    
-    await expect(ccnft.connect(c1).buy()).to.be.revertedWith("ERC20: insufficient allowance");
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("ERC20: insufficient allowance");
   });
 
   it("Cannot Buy ERC20: transfer amount exceeds balance (not enough to buy)", async function () {
     await busd.connect(c1).approve(ccnft.address, ethers.utils.parseEther("10000000"));
-    await expect(ccnft.connect(c1).buy()).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("ERC20: transfer amount exceeds balance");
   });
 
   it("Cannot Buy ERC20: transfer amount exceeds balance (not enough to pay fees)", async function () {
     await busd.transfer(c1.address, ethers.utils.parseEther("200"));
     c1Balance += 200
-    await expect(ccnft.connect(c1).buy()).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("ERC20: transfer amount exceeds balance");
   });
 
   it("First Buy ", async function () {
     await busd.transfer(c1.address, ethers.utils.parseEther("49800"));
     c1Balance += 49800
-    await ccnft.connect(c1).buy();
+    await ccnft.connect(c1).buy(1);
     c1Balance -= NFT_VALUE * 1.01
     fundsBalance += NFT_VALUE
     feesBalance += NFT_VALUE * .01
@@ -121,7 +120,6 @@ describe("CCNFT", function () {
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(50);
     expect(await ccnft.balanceOf(c1.address)).to.be.equal(1);
     expect(await ccnft.balanceOf(c2.address)).to.be.equal(0);
-    expect(await ccnft.balanceOf(returnCollector.address)).to.be.equal(0);
     expect(await ccnft.ownerOf(1)).to.be.equal(privateInvestor.address);
     expect(await ccnft.ownerOf(51)).to.be.equal(c1.address);
 
@@ -132,26 +130,30 @@ describe("CCNFT", function () {
     await busd.transfer(c2.address, ethers.utils.parseEther("50000"));
     c2Balance += 50000
     await busd.connect(c2).approve(ccnft.address, ethers.utils.parseEther("10000000"));
-    await ccnft.connect(c2).buy();
-    c2Balance -= NFT_VALUE * 1.01
-    fundsBalance += NFT_VALUE
-    feesBalance += NFT_VALUE * .01
-    expect(await ccnft.totalSupply()).to.be.equal(52);
-    expect(await ccnft.tokenCount()).to.be.equal(52);
+    await ccnft.connect(c2).buy(2);
+    c2Balance -= 2 * NFT_VALUE * 1.01
+    fundsBalance += 2 * NFT_VALUE
+    feesBalance += 2 * NFT_VALUE * .01
+    expect(await ccnft.totalSupply()).to.be.equal(53);
+    expect(await ccnft.tokenCount()).to.be.equal(53);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(50);
     expect(await ccnft.balanceOf(c1.address)).to.be.equal(1);
-    expect(await ccnft.balanceOf(c2.address)).to.be.equal(1);
-    expect(await ccnft.balanceOf(returnCollector.address)).to.be.equal(0);
+    expect(await ccnft.balanceOf(c2.address)).to.be.equal(2);
     expect(await ccnft.ownerOf(1)).to.be.equal(privateInvestor.address);
     expect(await ccnft.ownerOf(51)).to.be.equal(c1.address);
     expect(await ccnft.ownerOf(52)).to.be.equal(c2.address);
+    expect(await ccnft.ownerOf(53)).to.be.equal(c2.address);
 
     checkBalance();
   });
 
   it("Cannot Buy Over MaxMintPerUser", async function () {
     await busd.connect(privateInvestor).approve(ccnft.address, ethers.utils.parseEther("10000000"));
-    await expect(ccnft.connect(privateInvestor).buy()).to.be.revertedWith("Maximun mint per user exceeded");
+    await expect(ccnft.connect(privateInvestor).buy(5)).to.be.revertedWith("Cannot mint more than maximum mint");
+  });
+
+  it("Cannot Buy Over MaxMintPerUser", async function () {
+    await expect(ccnft.connect(privateInvestor).buy(1)).to.be.revertedWith("Maximum mint per user exceeded");
   });
 
   it("Cannot Claim: CanClaim=False", async function () {
@@ -183,10 +185,10 @@ describe("CCNFT", function () {
     privateInvestorBalance += 10 * NFT_VALUE * 1.5
     fundsBalance -= 10 * NFT_VALUE * 1.5
 
-    expect(await ccnft.totalSupply()).to.be.equal(42);
+    expect(await ccnft.totalSupply()).to.be.equal(43);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(40);
     expect(await ccnft.balanceOf(c1.address)).to.be.equal(1);
-    expect(await ccnft.balanceOf(c2.address)).to.be.equal(1);
+    expect(await ccnft.balanceOf(c2.address)).to.be.equal(2);
     await expect(ccnft.connect(c1).claim([1])).to.be.revertedWith("token doesn't exist");
     await expect(ccnft.connect(c1).claim([2])).to.be.revertedWith("token doesn't exist");
     await expect(ccnft.connect(c1).claim([3])).to.be.revertedWith("token doesn't exist");
@@ -210,6 +212,7 @@ describe("CCNFT", function () {
     expect(await ccnft.ownerOf(11)).to.be.equal(privateInvestor.address);
     expect(await ccnft.ownerOf(51)).to.be.equal(c1.address);
     expect(await ccnft.ownerOf(52)).to.be.equal(c2.address);
+    expect(await ccnft.ownerOf(53)).to.be.equal(c2.address);
 
     checkBalance();
   });
@@ -219,14 +222,15 @@ describe("CCNFT", function () {
     c2Balance += NFT_VALUE * 1.5
     fundsBalance -= NFT_VALUE * 1.5
 
-    expect(await ccnft.totalSupply()).to.be.equal(41);
+    expect(await ccnft.totalSupply()).to.be.equal(42);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(40);
     expect(await ccnft.balanceOf(c1.address)).to.be.equal(1);
-    expect(await ccnft.balanceOf(c2.address)).to.be.equal(0);
+    expect(await ccnft.balanceOf(c2.address)).to.be.equal(1);
     await expect(ccnft.connect(c2).claim([52])).to.be.revertedWith("token doesn't exist");
     await expect(ccnft.ownerOf(52)).to.be.revertedWith("");
     expect(await ccnft.ownerOf(11)).to.be.equal(privateInvestor.address);
     expect(await ccnft.ownerOf(51)).to.be.equal(c1.address);
+    expect(await ccnft.ownerOf(53)).to.be.equal(c2.address);
 
     checkBalance();
   });

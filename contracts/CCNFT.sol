@@ -37,28 +37,33 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     // PUBLIC FUNCTIONS
 
-    /// @notice Mints a NFT charging value and fees.
-    function buy() external nonReentrant {
+    /// @notice Mints a batch of NFT charging value and fees.
+    /// @param amount Amount of NFT to mint
+    function buy(uint8 amount) external nonReentrant {
         require(canBuy, "Buy is not allowed");
         require(fundsCollector != address(0), "FundsCollector not Set");
         require(feesCollector != address(0), "FeesCollector not Set");
-        require(tokenCount < MAX_SUPPLY, "No more NFT");
-        require(balanceOf(_msgSender()) < maxMintPerUser, "Maximun mint per user exceeded");
+        require(tokenCount + amount < MAX_SUPPLY, "No more NFT");
+        require(amount <= maxMintPerUser, "Cannot mint more than maximum mint");
+        require(balanceOf(_msgSender()) + amount <= maxMintPerUser, "Maximum mint per user exceeded");
 
-        tokenCount++;
+        for (uint8 i=1;i<=amount;i++) {
+            tokenCount++;
+            _safeMint(_msgSender(), tokenCount);
+            emit Buy(_msgSender(), tokenCount);
+        }
 
-        _safeMint(_msgSender(), tokenCount);
-        emit Buy(_msgSender(), tokenCount);
-
-    if (!fundsToken.transferFrom(_msgSender(), fundsCollector, NFT_VALUE)) 
+        if (!fundsToken.transferFrom(_msgSender(), fundsCollector, amount * NFT_VALUE)) 
             revert("Cannot send funds tokens");
 
-        if (!fundsToken.transferFrom(_msgSender(), feesCollector, NFT_VALUE * buyFee / 10000)) 
+        if (!fundsToken.transferFrom(_msgSender(), feesCollector, amount * NFT_VALUE * buyFee / 10000)) 
             revert("Cannot send fees tokens");
     } 
 
     /// @notice Mints a batch of NFT for free (OnlyOwner)
-    function mint(address to, uint16 amount) external onlyOwner {
+    /// @param to Address destination for minting
+    /// @param amount Amount of NFT to mint
+    function mint(address to, uint8 amount) external onlyOwner {
         require(to != address(0), "Cannot Mint to address 0");
         require(tokenCount + amount <= MAX_SUPPLY , "No more NFT");
 
