@@ -10,7 +10,8 @@ import "openzeppelin-solidity/contracts/security/ReentrancyGuard.sol";
 
 /// @title Smart Contract for managing CryptoCampo NFT
 /// @author Eduardo Mannarino
-/// @notice Implements ERC721 Standard with specific buy, trade and claim functions
+/// @notice Implements ERC721 Standard with specific buy and claim functions
+///         No Transfers.
 contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     event Buy(address indexed buyer, uint256 indexed tokenId);
@@ -18,21 +19,16 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
     event Claim(address indexed claimer, uint256 indexed tokenId);
 
     string private baseURI;
-    mapping(address => bool) public buyers;
     address public fundsCollector;
     address public feesCollector;
-    address public returnCollector;
     bool public canBuy;
     bool public canClaim;
-    bool public canReturn;
-    bool public canReBuy;
     uint256 public constant MAX_SUPPLY = 1420;
-    uint256 public constant NFT_VALUE = 225 * 10 ** 18 ;
+    uint256 public constant NFT_VALUE = 250 * 10 ** 18 ;
+    uint8 public maxMintPerUser = 1;
     uint16 public tokenCount = 0; 
     uint16 public tokenBurned = 0; 
     uint16 public buyFee; 
-    uint16 public returnFee; 
-    uint16 public reBuyFee; 
     uint16 public profitToPay;
     IERC20 public fundsToken;
     
@@ -47,10 +43,9 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         require(fundsCollector != address(0), "FundsCollector not Set");
         require(feesCollector != address(0), "FeesCollector not Set");
         require(tokenCount < MAX_SUPPLY, "No more NFT");
-        require(!buyers[_msgSender()], "Address already bought");
+        require(balanceOf(_msgSender()) < maxMintPerUser, "Maximun mint per user exceeded");
 
         tokenCount++;
-        buyers[_msgSender()] = true;
 
         _safeMint(_msgSender(), tokenCount);
         emit Buy(_msgSender(), tokenCount);
@@ -93,34 +88,6 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         }
     }   
 
-    /// @notice Return a NFT to CryptoCampo for a value with a discount.
-    /// @param tokenId TokenId to be returned.
-    function returnToken(uint256 tokenId) external nonReentrant {
-        require(canReturn, "Return is not allowed");
-        require(fundsCollector != address(0), "FundsCollector not Set");
-        require(returnCollector != address(0), "ReturnCollector not Set");
-		require(_exists(tokenId), "token doesn't exist");
-        require(_msgSender() == ownerOf(tokenId), "Only owner can Return");
-
-        _safeTransfer(_msgSender(), returnCollector, tokenId, "");
-
-        if (!fundsToken.transferFrom(fundsCollector, _msgSender(), NFT_VALUE - (NFT_VALUE * returnFee / 10000))) 
-            revert("cannot send funds");
-    }
-
-    /// @notice Transfer a minted NFT from CryptoCampo for a value with an extra charge.
-    /// @param tokenId TokenId to be returned.
-    function reBuy(uint256 tokenId) external nonReentrant {
-        require(canReBuy, "ReBuy is not allowed");
-		require(_exists(tokenId), "token doesn't exist");
-		require(returnCollector == ownerOf(tokenId), "owner is not returnCollector");
-
-        _safeTransfer(returnCollector, _msgSender(), tokenId, "");
-
-        if (!fundsToken.transferFrom(_msgSender(), fundsCollector, NFT_VALUE + (NFT_VALUE * reBuyFee / 10000))) 
-            revert("cannot send funds");
-    }
-
     // SETTERS
 
     function setFundsToken(address token) external onlyOwner {
@@ -138,11 +105,6 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         feesCollector = _address;
     }
 
-    function setReturnCollector(address _address) external onlyOwner {
-        require(_address != address(0), "Cannot set address 0");
-        returnCollector = _address;
-    }
-
     function setProfitToPay(uint16 _profitToPay) external onlyOwner {
         profitToPay = _profitToPay;
     }
@@ -155,24 +117,12 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         canClaim = _canClaim;
     }
 
-    function setCanReturn(bool _canReturn) external onlyOwner {
-        canReturn = _canReturn;
-    }
-
-    function setCanReBuy(bool _canReBuy) external onlyOwner {
-        canReBuy = _canReBuy;
-    }
-
     function setBuyFee(uint16 _buyFee) external onlyOwner {
         buyFee = _buyFee;
     }
 
-    function setReturnFee(uint16 _returnFee) external onlyOwner {
-        returnFee = _returnFee;
-    }
-
-    function setReBuyFee(uint16 _reBuyFee) external onlyOwner {
-        reBuyFee = _reBuyFee;
+    function setMaxMintPerUser(uint8 _maxMintPerUser) external onlyOwner {
+        maxMintPerUser = _maxMintPerUser;
     }
 
     function setBaseURI(string memory _baseURI) external onlyOwner {
@@ -188,12 +138,44 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         return string(abi.encodePacked(baseURI, Strings.toString(tokenId)));
     }    
 
-    // RECOVER FUNDS 
+    // MANAGING FUNDS 
 
     function recover(address token) external onlyOwner {
-        if (IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)))){
+        if (!IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)))){
             revert("Cannot send funds.");
         }
+    }
+
+    function deposit() payable public {
+    }    
+
+    function withdraw() payable onlyOwner public {
+        payable(msg.sender).transfer(address(this).balance);
+     }
+
+    // NOT SUPPORTED FUNCTIONS
+    function transferFrom(address, address, uint256) 
+        public 
+        pure 
+        override(ERC721, IERC721)
+    {
+        revert("Not Allowed");
+    }
+
+    function safeTransferFrom(address, address, uint256) 
+        public 
+        pure 
+        override(ERC721, IERC721)
+    {
+        revert("Not Allowed");
+    }
+
+    function safeTransferFrom(address, address, uint256,  bytes memory) 
+        public 
+        pure
+        override(ERC721, IERC721)
+    {
+        revert("Not Allowed");
     }
 
     // Compliance required by Solidity
