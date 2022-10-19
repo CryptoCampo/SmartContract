@@ -8,10 +8,10 @@ const main = async () => {
   await ccnft.setFeesCollector("0x7091111665c720F1e0BC5494602056B8C64D0Df7");
   await ccnft.setFundsToken("0x5aeBbE8bFA46866Ec8b1EC51a1B6cB98fAAC35f7");
   await ccnft.setProfitToPay(5000);
-  await ccnft.setBuyFee(100);
+  await ccnft.setBuyFee(0);
   await ccnft.setCanBuy(true);
   await ccnft.setCanClaim(true);
-  await ccnft.setMaxMintPerUser(2);
+  await ccnft.setMaxMintPerUser(8);
 };
 
 const runMain = async () => {

@@ -79,8 +79,8 @@ describe("CCNFT", function () {
   });
 
   it("setBuyFee", async function () {
-    await ccnft.setBuyFee(100);
-    expect(await ccnft.buyFee()).to.be.equal(100);
+    await ccnft.setBuyFee(0);
+    expect(await ccnft.buyFee()).to.be.equal(0);
   });
 
   it("setMaxMintPerUser", async function () {
@@ -92,8 +92,13 @@ describe("CCNFT", function () {
     await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("Buy is not allowed");
   });
 
+  it("Cannot Buy Not Whitelisted", async function () {
+    await ccnft.setCanBuy(true);        
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("Not Whitelisted");
+  });
+
   it("Cannot Buy: ERC20: insufficient allowance ", async function () {
-    await ccnft.setCanBuy(true);    
+    await ccnft.setWhitelist(c1.address, true)
     await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("ERC20: insufficient allowance");
   });
 
@@ -108,13 +113,14 @@ describe("CCNFT", function () {
     await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("ERC20: transfer amount exceeds balance");
   });
 
-  it("First Buy ", async function () {
+  it("First Buy (OnlyWhitelist) ", async function () {
     await busd.transfer(c1.address, ethers.utils.parseEther("49800"));
     c1Balance += 49800
     await ccnft.connect(c1).buy(1);
-    c1Balance -= NFT_VALUE * 1.01
+    const buyFee = ccnft.buyFee() / 10000
+    c1Balance -= NFT_VALUE * (1 + buyFee)
     fundsBalance += NFT_VALUE
-    feesBalance += NFT_VALUE * .01
+    feesBalance += NFT_VALUE * buyFee
     expect(await ccnft.totalSupply()).to.be.equal(51);
     expect(await ccnft.tokenCount()).to.be.equal(51);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(50);
@@ -126,14 +132,16 @@ describe("CCNFT", function () {
     checkBalance();
   });
 
-  it("Second Buy ", async function () {
+  it("Second Buy (No Whitelist)", async function () {
+    await ccnft.setOnlyWhitelist(false)
     await busd.transfer(c2.address, ethers.utils.parseEther("50000"));
     c2Balance += 50000
     await busd.connect(c2).approve(ccnft.address, ethers.utils.parseEther("10000000"));
     await ccnft.connect(c2).buy(2);
-    c2Balance -= 2 * NFT_VALUE * 1.01
+    const buyFee = ccnft.buyFee() / 10000
+    c2Balance -= 2 * NFT_VALUE * (1 + buyFee)
     fundsBalance += 2 * NFT_VALUE
-    feesBalance += 2 * NFT_VALUE * .01
+    feesBalance += 2 * NFT_VALUE * buyFee
     expect(await ccnft.totalSupply()).to.be.equal(53);
     expect(await ccnft.tokenCount()).to.be.equal(53);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(50);
@@ -182,8 +190,9 @@ describe("CCNFT", function () {
     await busd.transfer(funds.address, ethers.utils.parseEther("5000"));
     fundsBalance += 5000
     await ccnft.connect(privateInvestor).claim([1,2,3,4,5,6,7,8,9,10]);
-    privateInvestorBalance += 10 * NFT_VALUE * 1.5
-    fundsBalance -= 10 * NFT_VALUE * 1.5
+    const profitToPay = ccnft.profitToPay() / 10000
+    privateInvestorBalance += 10 * NFT_VALUE * (1 + profitToPay)
+    fundsBalance -= 10 * NFT_VALUE * (1 + profitToPay)
 
     expect(await ccnft.totalSupply()).to.be.equal(43);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(40);
@@ -219,8 +228,9 @@ describe("CCNFT", function () {
   
   it("Second Claim", async function () {
     await ccnft.connect(c2).claim([52]);
-    c2Balance += NFT_VALUE * 1.5
-    fundsBalance -= NFT_VALUE * 1.5
+    const profitToPay = ccnft.profitToPay() / 10000
+    c2Balance += NFT_VALUE * (1 + profitToPay)
+    fundsBalance -= NFT_VALUE * (1 + profitToPay)
 
     expect(await ccnft.totalSupply()).to.be.equal(42);
     expect(await ccnft.balanceOf(privateInvestor.address)).to.be.equal(40);
@@ -257,6 +267,19 @@ describe("CCNFT", function () {
     expect(await ethers.provider.getBalance(ccnft.address)).to.be.equal(ethers.utils.parseEther("0"));    
   });
 
+  it("Cannot Buy Batch Whitelisted", async function () {
+    await ccnft.setOnlyWhitelist(true)
+    await ccnft.setBatchWhitelist([c1.address, c2.address], false)
+    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("Not Whitelisted");
+    await expect(ccnft.connect(c2).buy(1)).to.be.revertedWith("Not Whitelisted");
+  });
+
+  it("Can Buy Batch Whitelisted", async function () {
+    await ccnft.setOnlyWhitelist(true)
+    await ccnft.setBatchWhitelist([c1.address, c2.address], true)
+    await ccnft.connect(c1).buy(1)
+    await ccnft.connect(c2).buy(1)
+  });
 });
 
 const checkBalance = async () => {

@@ -18,9 +18,11 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
     event Mint(address indexed buyer, uint256 indexed tokenId);
     event Claim(address indexed claimer, uint256 indexed tokenId);
 
+    mapping(address => bool) public whitelist;
     string private baseURI;
     address public fundsCollector;
     address public feesCollector;
+    bool public onlyWhitelist = true;
     bool public canBuy;
     bool public canClaim;
     uint256 public constant MAX_SUPPLY = 1420;
@@ -46,6 +48,8 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         require(tokenCount + amount < MAX_SUPPLY, "No more NFT");
         require(amount <= maxMintPerUser, "Cannot mint more than maximum mint");
         require(balanceOf(_msgSender()) + amount <= maxMintPerUser, "Maximum mint per user exceeded");
+        require(!onlyWhitelist || whitelist[_msgSender()], "Not Whitelisted");
+
 
         for (uint8 i=1;i<=amount;i++) {
             tokenCount++;
@@ -56,8 +60,10 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         if (!fundsToken.transferFrom(_msgSender(), fundsCollector, amount * NFT_VALUE)) 
             revert("Cannot send funds tokens");
 
-        if (!fundsToken.transferFrom(_msgSender(), feesCollector, amount * NFT_VALUE * buyFee / 10000)) 
-            revert("Cannot send fees tokens");
+        if (buyFee > 0) {
+            if (!fundsToken.transferFrom(_msgSender(), feesCollector, amount * NFT_VALUE * buyFee / 10000)) 
+                revert("Cannot send fees tokens");
+        }
     } 
 
     /// @notice Mints a batch of NFT for free (OnlyOwner)
@@ -132,6 +138,20 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     function setBaseURI(string memory _baseURI) external onlyOwner {
         baseURI = _baseURI;
+    }
+
+    function setOnlyWhitelist(bool _onlyWhitelist) external onlyOwner {
+        onlyWhitelist = _onlyWhitelist;
+    }
+
+    function setWhitelist(address _address, bool value) external onlyOwner {
+        whitelist[_address] = value;
+    }
+
+    function setBatchWhitelist(address[] calldata _whitelist, bool value) external onlyOwner {
+        for (uint8 i=0;i<_whitelist.length;i++) {
+            whitelist[_whitelist[i]] = value;
+        }
     }
 
     // GETTERS
