@@ -98,7 +98,7 @@ describe("CCNFT", function () {
   });
 
   it("Cannot Buy: ERC20: insufficient allowance ", async function () {
-    await ccnft.setWhitelist(c1.address, true)
+    await ccnft.setWhitelist([c1.address], true)
     await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("ERC20: insufficient allowance");
   });
 
@@ -265,20 +265,6 @@ describe("CCNFT", function () {
   it("Withdraw ETH", async function () {  
     await ccnft.withdraw();
     expect(await ethers.provider.getBalance(ccnft.address)).to.be.equal(ethers.utils.parseEther("0"));    
-  });
-
-  it("Cannot Buy Batch Whitelisted", async function () {
-    await ccnft.setOnlyWhitelist(true)
-    await ccnft.setBatchWhitelist([c1.address, c2.address], false)
-    await expect(ccnft.connect(c1).buy(1)).to.be.revertedWith("Not Whitelisted");
-    await expect(ccnft.connect(c2).buy(1)).to.be.revertedWith("Not Whitelisted");
-  });
-
-  it("Can Buy Batch Whitelisted", async function () {
-    await ccnft.setOnlyWhitelist(true)
-    await ccnft.setBatchWhitelist([c1.address, c2.address], true)
-    await ccnft.connect(c1).buy(1)
-    await ccnft.connect(c2).buy(1)
   });
 });
 

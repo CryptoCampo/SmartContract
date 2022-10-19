@@ -144,11 +144,7 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         onlyWhitelist = _onlyWhitelist;
     }
 
-    function setWhitelist(address _address, bool value) external onlyOwner {
-        whitelist[_address] = value;
-    }
-
-    function setBatchWhitelist(address[] calldata _whitelist, bool value) external onlyOwner {
+    function setWhitelist(address[] calldata _whitelist, bool value) external onlyOwner {
         for (uint8 i=0;i<_whitelist.length;i++) {
             whitelist[_whitelist[i]] = value;
         }
