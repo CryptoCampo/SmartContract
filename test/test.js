@@ -78,6 +78,10 @@ describe("CCNFT", function () {
     await ccnft.setCanClaim(false);
   });
 
+  it("Cannot setBuyFee over 10%", async function () {
+    await expect(ccnft.setBuyFee(1100)).to.be.revertedWith("BuyFee Limit Exceeded");
+  });
+
   it("setBuyFee", async function () {
     await ccnft.setBuyFee(0);
     expect(await ccnft.buyFee()).to.be.equal(0);

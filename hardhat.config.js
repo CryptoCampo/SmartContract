@@ -40,5 +40,10 @@ module.exports = {
       gasPrice: 10000000000,
       accounts: [process.env.PRIVATE_KEY]
     },
+    goerli: {
+      url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
+      chainId: 5,
+      accounts: [process.env.PRIVATE_KEY]
+    },
   },
 };

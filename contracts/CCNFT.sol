@@ -101,57 +101,83 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     // SETTERS
 
+    /// @notice Set Funds Token
+    /// @param token Address of the Funds Token
     function setFundsToken(address token) external onlyOwner {
         require(token != address(0), "Cannot set address 0");
         fundsToken = IERC20(token);
     }
    
+    /// @notice Set Funds Collector
+    /// @param _address Address of the Funds Collector
     function setFundsCollector(address _address) external onlyOwner {
         require(_address != address(0), "Cannot set address 0");
         fundsCollector = _address;
     }
 
+    /// @notice Set Fees Collector
+    /// @param _address Address of the Fees Collector
     function setFeesCollector(address _address) external onlyOwner {
         require(_address != address(0), "Cannot set address 0");
         feesCollector = _address;
     }
 
+    /// @notice Set the Profit to pay
+    /// @param _profitToPay Percentege of profit to pay
+    /// @dev takes 2 decimals places
     function setProfitToPay(uint16 _profitToPay) external onlyOwner {
         profitToPay = _profitToPay;
     }
 
+    /// @notice Set the canBuy Flag
+    /// @param _canBuy value of the flag
     function setCanBuy(bool _canBuy) external onlyOwner {
         canBuy = _canBuy;
     }
 
+    /// @notice Set the canClaim Flag
+    /// @param _canClaim value of the flag
     function setCanClaim(bool _canClaim) external onlyOwner {
         canClaim = _canClaim;
     }
 
+    /// @notice Set the Buy Fee
+    /// @param _buyFee Percentege of profit to pay
+    /// @dev takes 2 decimals places
     function setBuyFee(uint16 _buyFee) external onlyOwner {
+        require(_buyFee <= 1000, "BuyFee Limit Exceeded");
         buyFee = _buyFee;
     }
 
+    /// @notice Set the Max Mint per User
+    /// @param _maxMintPerUser Maximum amount of mint per user
     function setMaxMintPerUser(uint8 _maxMintPerUser) external onlyOwner {
         maxMintPerUser = _maxMintPerUser;
     }
 
+    /// @notice Set the Base URI
+    /// @param _baseURI value of the URI
     function setBaseURI(string memory _baseURI) external onlyOwner {
         baseURI = _baseURI;
     }
 
+    /// @notice Set the OnlyWhitelist flag
+    /// @param _onlyWhitelist value of the flag
     function setOnlyWhitelist(bool _onlyWhitelist) external onlyOwner {
         onlyWhitelist = _onlyWhitelist;
     }
 
+    /// @notice Set/Unset the whitelist
+    /// @param _whitelist array of address to add/remove to whitelist
+    /// @param value true to add to whitelist or false to remove
     function setWhitelist(address[] calldata _whitelist, bool value) external onlyOwner {
         for (uint8 i=0;i<_whitelist.length;i++) {
-            whitelist[_whitelist[i]] = value;
+            if (_whitelist[i] != address(0)) {
+                whitelist[_whitelist[i]] = value;
+            }
         }
     }
 
-    // GETTERS
-    
     /// @notice Returns the metadata of a specific token
     /// @param tokenId ID of the token type
     function uri(uint256 tokenId) public view returns (string memory) {
@@ -159,22 +185,24 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         return string(abi.encodePacked(baseURI, Strings.toString(tokenId)));
     }    
 
-    // MANAGING FUNDS 
-
+    /// @notice Recover any ERC20 Token that might be sent to this contract
+    /// @param token address of the ERC20 token
     function recover(address token) external onlyOwner {
         if (!IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)))){
             revert("Cannot send funds.");
         }
     }
 
+    /// @notice Allow to deposit to this contract
     function deposit() payable public {
     }    
 
+    /// @notice Allow to withdraw from this contract
     function withdraw() payable onlyOwner public {
         payable(msg.sender).transfer(address(this).balance);
      }
 
-    // NOT SUPPORTED FUNCTIONS
+    /// @dev Function not available
     function transferFrom(address, address, uint256) 
         public 
         pure 
@@ -183,6 +211,7 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         revert("Not Allowed");
     }
 
+    /// @dev Function not available
     function safeTransferFrom(address, address, uint256) 
         public 
         pure 
@@ -191,6 +220,7 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
         revert("Not Allowed");
     }
 
+    /// @dev Function not available
     function safeTransferFrom(address, address, uint256,  bytes memory) 
         public 
         pure
@@ -198,8 +228,6 @@ contract CCNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
     {
         revert("Not Allowed");
     }
-
-    // Compliance required by Solidity
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal
